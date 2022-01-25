@@ -118,11 +118,11 @@ class ObjectArray:
             QT_TRANSLATE_NOOP("App::Property", "Maximum random offset of copies"),
         )
         obj.addProperty(
-		    "App::PropertyInteger",
-			"JitterSeed",
-			"Path",
-			QT_TRANSLATE_NOOP("App::Property","Seed value for jitter randomness"),
-		)
+            "App::PropertyInteger",
+            "JitterSeed",
+            "Path",
+            QT_TRANSLATE_NOOP("App::Property","Seed value for jitter randomness"),
+        )
         obj.addProperty(
             "App::PropertyLink",
             "ToolController",
