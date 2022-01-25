@@ -35,7 +35,27 @@ __doc__ = """Path Array object and FreeCAD command"""
 translate = FreeCAD.Qt.translate
 
 
-class ObjectArray:
+class DiscoverToolControllerMixin:
+    def _discover_tool_controller(self, base, depth=0):
+        """
+        Recursively attempt to discover a ToolController from a Base feature
+        """
+
+        if depth == 10:
+            return None
+
+        tool_controller = getattr(base, 'ToolController', None)
+        if tool_controller:
+            return tool_controller
+
+        parent_base = getattr(base, 'Base', None)
+        if parent_base:
+            return self._discover_tool_controller(parent_base, depth + 1)
+
+        return None
+
+
+class ObjectArray(DiscoverToolControllerMixin):
     def __init__(self, obj):
         obj.addProperty(
             "App::PropertyLinkList",
@@ -274,7 +294,7 @@ class ObjectArray:
         if len(base) == 0:
             return
 
-        obj.ToolController = base[0].ToolController
+        obj.ToolController = self._discover_tool_controller(base[0])
 
         # Do not generate paths and clear current Path data if operation not
         if not obj.Active:
@@ -303,7 +323,7 @@ class ObjectArray:
         obj.Path = pa.getPath()
 
 
-class PathArray:
+class PathArray(DiscoverToolControllerMixin):
     """class PathArray ...
     This class receives one or more base operations and repeats those operations
     at set intervals based upon array type requested and the related settings for that type."""
@@ -370,14 +390,19 @@ class PathArray:
             return None
 
         base = self.baseList
+        base_tool_controller = self._discover_tool_controller(base[0])
         for b in base:
             if not b.isDerivedFrom("Path::Feature"):
                 return
             if not b.Path:
                 return
-            if not b.ToolController:
+
+            b_tool_controller = self._discover_tool_controller(b)
+
+            if not b_tool_controller:
                 return
-            if b.ToolController != base[0].ToolController:
+
+            if b_tool_controller != base_tool_controller:
                 # this may be important if Job output is split by tool controller
                 PathLog.warning(
                     translate(
@@ -508,11 +533,8 @@ class CommandPathArray:
     def IsActive(self):
         if bool(FreeCADGui.Selection.getSelection()) is False:
             return False
-        try:
-            obj = FreeCADGui.Selection.getSelectionEx()[0].Object
-            return isinstance(obj.Proxy, PathScripts.PathOp.ObjectOp)
-        except (IndexError, AttributeError):
-            return False
+
+        return all([sel.isDerivedFrom("Path::Feature") for sel in FreeCADGui.Selection.getSelection()])
 
     def Activated(self):
 
